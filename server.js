@@ -154,6 +154,7 @@ async function imdbIdOf(type, tmdbId, key) {
 // Accetta "tt123", "tt123:1:2", "tmdb:movie:123", "tmdb:series:123:1:2"
 async function resolveId(type, id, key) {
   const parts = String(id).split(':');
+  if (parts[0] === 'ci') parts.shift();
   if (parts[0] === 'tmdb') {
     return {
       tmdbId: Number(parts[2]) || null,
@@ -340,7 +341,7 @@ const { tmdb, img, imdbIdOf, T } = require('./tmdb');
 const { filterOptions, applyFilter, genreName } = require('./filters');
 
 const TYPES = ['movie', 'series'];
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 
 function isoDay(offsetDays) {
   return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
@@ -376,11 +377,11 @@ function buildManifest(cfg) {
       'cinema, noleggio e gratis, con filtri per genere, anno e voto. Dati TMDB e JustWatch.',
     resources: [
       'catalog',
-      { name: 'meta', types: TYPES, idPrefixes: ['tt', 'tmdb:'] },
-      { name: 'stream', types: TYPES, idPrefixes: ['tt', 'tmdb:'] },
+      { name: 'meta', types: TYPES, idPrefixes: ['ci:', 'tmdb:'] },
+      { name: 'stream', types: TYPES, idPrefixes: ['tt', 'ci:', 'tmdb:'] },
     ],
     types: TYPES,
-    idPrefixes: ['tt', 'tmdb:'],
+    idPrefixes: ['ci:', 'tt', 'tmdb:'],
     catalogs,
     behaviorHints: { configurable: true, configurationRequired: false },
   };
@@ -396,7 +397,7 @@ async function preview(type, r, key) {
   const date = r.release_date || r.first_air_date || '';
   const vote = r.vote_count ? `⭐ ${Number(r.vote_average).toFixed(1)}/10` : null;
   return {
-    id: imdb || `tmdb:${type}:${r.id}`,
+    id: imdb ? `ci:${imdb}` : `tmdb:${type}:${r.id}`,
     type,
     name: r.title || r.name,
     poster: img(r.poster_path, 'w342'),
@@ -558,7 +559,9 @@ async function meta(cfg, type, id) {
   );
   if (!det) return { meta: null };
 
-  const metaId = String(id).split(':').slice(0, id.startsWith('tmdb:') ? 3 : 1).join(':');
+  const metaId = String(id);
+  const imdbId = r.imdbId || (det.external_ids && det.external_ids.imdb_id) || null;
+  const videoBase = imdbId || `tmdb:${type}:${r.tmdbId}`;
   const name = det.title || det.name;
   const wp = det['watch/providers'] && det['watch/providers'].results && det['watch/providers'].results.IT;
   const offers = groupOffers(wp);
@@ -605,10 +608,10 @@ async function meta(cfg, type, id) {
     links,
     trailers: trailers.map((v) => ({ source: v.key, type: 'Trailer' })),
     trailerStreams: trailers.map((v) => ({ title: v.name, ytId: v.key })),
-    behaviorHints: type === 'movie' ? { defaultVideoId: metaId } : {},
+    behaviorHints: type === 'movie' ? { defaultVideoId: videoBase } : {},
   };
 
-  if (type === 'series') m.videos = await episodes(det, metaId, key);
+  if (type === 'series') m.videos = await episodes(det, videoBase, key);
   return { meta: m };
 }
 
