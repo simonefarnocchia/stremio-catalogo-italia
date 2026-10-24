@@ -341,7 +341,7 @@ const { tmdb, img, imdbIdOf, T } = require('./tmdb');
 const { filterOptions, applyFilter, genreName } = require('./filters');
 
 const TYPES = ['movie', 'series'];
-const VERSION = '1.1.1';
+const VERSION = '1.2.0';
 
 function isoDay(offsetDays) {
   return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
@@ -653,6 +653,7 @@ async function streams(cfg, type, id) {
         description: desc,
         title: desc,
         externalUrl: providerUrl(p.provider_name, title, offers.link),
+        androidTvUrl: providerUrl(p.provider_name, title, offers.link),
       });
     }
   };
@@ -663,7 +664,7 @@ async function streams(cfg, type, id) {
 
   if (offers.link) {
     const desc = 'Tutte le offerte in Italia\nLink diretti a ogni servizio (TMDB · JustWatch)';
-    out.push({ name: 'ℹ️ Dove guardarlo', description: desc, title: desc, externalUrl: offers.link });
+    out.push({ name: 'ℹ️ Dove guardarlo', description: desc, title: desc, externalUrl: offers.link, androidTvUrl: offers.link });
   }
   return { streams: out };
 }
