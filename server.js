@@ -341,7 +341,7 @@ const { tmdb, img, imdbIdOf, T } = require('./tmdb');
 const { filterOptions, applyFilter, genreName } = require('./filters');
 
 const TYPES = ['movie', 'series'];
-const VERSION = '1.1.0';
+const VERSION = '1.1.1';
 
 function isoDay(offsetDays) {
   return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
@@ -721,6 +721,8 @@ async function handle(req, res) {
   if (!RESERVED.has(segs[0])) rawCfg = segs.shift();
   const cfg = decode(rawCfg);
   const head = segs[0];
+  // Registro richieste (senza la configurazione, che può contenere la chiave)
+  if (head !== 'health') console.log(`${new Date().toISOString()} ${req.method} /${segs.join('/')}`);
 
   if (head === 'health') return send(res, 200, { ok: true });
   if (head === 'configure') return send(res, 200, CONFIGURE_HTML, { type: 'text/html; charset=utf-8' });
