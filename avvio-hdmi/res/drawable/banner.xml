@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <path android:fillColor="#1E1B4B" android:pathData="M0,0h320v180h-320z" />
+    <path android:fillColor="#7B5CFF" android:pathData="M0,150h320v30h-320z" />
+    <!-- connettore HDMI -->
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M88,52h144v40l-18,22h-108l-18,-22z" />
+    <path android:fillColor="#1E1B4B"
+        android:pathData="M104,66h112v20l-12,14h-88l-12,-14z" />
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M116,76h88v6h-88z" />
+</vector>

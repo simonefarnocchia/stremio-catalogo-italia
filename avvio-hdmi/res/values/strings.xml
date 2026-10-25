@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Avvio HDMI</string>
+    <string name="service_desc">Porta il proiettore sull\'ingresso HDMI scelto quando si accende o si risveglia dallo standby. Non legge il contenuto dello schermo: guarda solo quale app è in primo piano, per sapere se l\'avvio è finito.</string>
+</resources>

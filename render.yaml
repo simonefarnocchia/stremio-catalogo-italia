@@ -6,6 +6,11 @@ services:
     buildCommand: npm install
     startCommand: node server.js
     healthCheckPath: /health
+    buildFilter:
+      paths:
+        - server.js
+        - package.json
+        - render.yaml
     envVars:
       - key: TMDB_KEY
         sync: false
