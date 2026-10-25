@@ -1,11 +1,11 @@
-name: Avvio HDMI
+name: Telecomando Taverna
 
 on:
   push:
     branches: [main]
     paths:
-      - 'avvio-hdmi/**'
-      - '.github/workflows/avvio-hdmi.yml'
+      - 'android/**'
+      - '.github/workflows/telecomando.yml'
   workflow_dispatch:
 
 permissions:
@@ -23,12 +23,12 @@ jobs:
       - name: Compila
         env:
           VERSION_CODE: ${{ github.run_number }}
-        run: bash avvio-hdmi/build.sh
+        run: bash android/build.sh telecomando TelecomandoTaverna.apk
       - name: Pubblica
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "avvio-hdmi-${{ github.run_number }}" avvio-hdmi/out/AvvioHDMI.apk \
-            --title "Avvio HDMI 1.0.${{ github.run_number }}" \
-            --notes "App per proiettori Android TV: all'accensione passa all'ingresso HDMI." \
+          gh release create "telecomando-${{ github.run_number }}" android/telecomando/out/TelecomandoTaverna.apk \
+            --title "Telecomando Taverna 1.0.${{ github.run_number }}" \
+            --notes "Sull'HDMI del box, Volume/Muto/Home del telecomando del proiettore vanno a Home Assistant." \
             --latest

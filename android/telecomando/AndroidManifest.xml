@@ -1,25 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="it.avviohdmi">
+    package="it.taverna.telecomando">
 
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
     <queries>
-        <intent>
-            <action android:name="android.intent.action.MAIN" />
-            <category android:name="android.intent.category.HOME" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.MAIN" />
-            <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.MAIN" />
-            <category android:name="android.intent.category.LAUNCHER" />
-        </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="content" android:host="android.media.tv" />
@@ -31,12 +21,13 @@
         android:icon="@drawable/icon"
         android:banner="@drawable/banner"
         android:allowBackup="true"
+        android:usesCleartextTraffic="true"
         android:theme="@android:style/Theme.Material.NoActionBar">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:screenOrientation="landscape">
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
@@ -45,7 +36,7 @@
         </activity>
 
         <service
-            android:name=".HdmiService"
+            android:name=".KeyService"
             android:exported="true"
             android:label="@string/app_name"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
@@ -56,14 +47,5 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_config" />
         </service>
-
-        <receiver
-            android:name=".BootReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
-            </intent-filter>
-        </receiver>
     </application>
 </manifest>
