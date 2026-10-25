@@ -19,11 +19,15 @@ import java.util.Set;
  */
 public class KeyService extends AccessibilityService {
     private static final long VOLUME_REPEAT_MS = 150;
+    private static final long HOME_LONG_MS = 600;     // Home tenuto premuto = Home del proiettore
 
     private final Set<String> hdmiApps = new HashSet<>();
     private final Set<String> ignored = new HashSet<>();
     private String foreground = "";
     private long lastVolumeSent;
+    private long homeDownAt;
+    private boolean homeLongDone;
+    private long passHomeUntil;
 
     @Override
     protected void onServiceConnected() {
@@ -67,6 +71,7 @@ public class KeyService extends AccessibilityService {
     protected boolean onKeyEvent(KeyEvent event) {
         try {
             if (!onHdmi()) return false;
+            if (event.getKeyCode() == KeyEvent.KEYCODE_HOME) return onHome(event);
             String key = map(event.getKeyCode());
             if (key == null) return false;
 
@@ -89,6 +94,33 @@ public class KeyService extends AccessibilityService {
         }
     }
 
+    /** Home breve → Home del box; Home tenuto premuto → Home del proiettore. */
+    private boolean onHome(KeyEvent event) {
+        long now = SystemClock.uptimeMillis();
+        if (now < passHomeUntil) return false;            // la Home che abbiamo rimandato noi
+        if (!Prefs.on(this, Prefs.K_HOME, true)) return false;
+        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+            if (event.getRepeatCount() == 0) {
+                homeDownAt = now;
+                homeLongDone = false;
+            } else if (!homeLongDone && ((event.getFlags() & KeyEvent.FLAG_LONG_PRESS) != 0
+                    || now - homeDownAt >= HOME_LONG_MS)) {
+                homeLongDone = true;
+                projectorHome();
+            }
+        } else if (event.getAction() == KeyEvent.ACTION_UP && !homeLongDone) {
+            if (now - homeDownAt >= HOME_LONG_MS) projectorHome();
+            else send("home");
+        }
+        return true;
+    }
+
+    private void projectorHome() {
+        passHomeUntil = SystemClock.uptimeMillis() + 1500;
+        Prefs.get(this).edit().putString(Prefs.K_LAST_KEY, "home_proiettore").apply();
+        performGlobalAction(GLOBAL_ACTION_HOME);
+    }
+
     private String map(int code) {
         switch (code) {
             case KeyEvent.KEYCODE_VOLUME_UP:
@@ -97,8 +129,6 @@ public class KeyService extends AccessibilityService {
                 return Prefs.on(this, Prefs.K_VOLUME, true) ? "volume_down" : null;
             case KeyEvent.KEYCODE_VOLUME_MUTE:
                 return Prefs.on(this, Prefs.K_VOLUME, true) ? "mute" : null;
-            case KeyEvent.KEYCODE_HOME:
-                return Prefs.on(this, Prefs.K_HOME, true) ? "home" : null;
             case KeyEvent.KEYCODE_SEARCH:
             case KeyEvent.KEYCODE_ASSIST:
             case KeyEvent.KEYCODE_VOICE_ASSIST:

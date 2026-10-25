@@ -82,7 +82,7 @@ public class MainActivity extends Activity {
         section("Tasti");
         SharedPreferences p = Prefs.get(this);
         check("Volume e Muto → impianto audio", Prefs.K_VOLUME, true, p);
-        check("Home → Home del box", Prefs.K_HOME, true, p);
+        check("Home → Home del box (tieni premuto Home per la Home del proiettore)", Prefs.K_HOME, true, p);
         check("Assistente → box (il box non riceve la voce: apre solo la ricerca)", Prefs.K_ASSIST, false, p);
 
         section("Prova");
