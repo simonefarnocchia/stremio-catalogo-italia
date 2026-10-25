@@ -1,7 +1,15 @@
 package it.taverna.telecomando;
 
 import android.accessibilityservice.AccessibilityService;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
+import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
+import android.provider.Settings;
 import android.content.pm.ResolveInfo;
 import android.media.tv.TvContract;
 import android.os.SystemClock;
@@ -16,6 +24,7 @@ import java.util.Set;
  * Intercetta Volume, Muto, Home e Assistente del telecomando del proiettore,
  * ma solo mentre è in primo piano l'ingresso HDMI: li manda a Home Assistant
  * e il proiettore non li vede. Nelle altre app i tasti funzionano come sempre.
+ * All'accensione (e al risveglio dallo standby) porta il proiettore sull'HDMI.
  */
 public class KeyService extends AccessibilityService {
     private static final long VOLUME_REPEAT_MS = 150;
@@ -28,6 +37,38 @@ public class KeyService extends AccessibilityService {
     private long homeDownAt;
     private boolean homeLongDone;
     private long passHomeUntil;
+
+    // Avvio su HDMI
+    private static final long BOOT_WINDOW_MS = 4 * 60 * 1000;   // accensione = primi 4 minuti
+    private static final long WATCH_MS = 45 * 1000;              // per 45 s controlla la Home
+    private static final long FIRST_DELAY_MS = 3000;
+    private static final int MAX_ATTEMPTS = 4;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Set<String> homes = new HashSet<>();
+    private long watchUntil;
+    private int attempts;
+    private boolean registered;
+
+    private final Runnable doSwitch = new Runnable() {
+        @Override public void run() {
+            try {
+                if (attempts >= MAX_ATTEMPTS) return;
+                attempts++;
+                Switcher.switchNow(KeyService.this);
+            } catch (Throwable t) {
+                error("Apertura HDMI", t);
+            }
+        }
+    };
+
+    private final BroadcastReceiver screenOn = new BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) {
+            if (Prefs.on(c, Switcher.K_ON_WAKE, true)) {
+                Log.i(Prefs.TAG, "Risveglio dallo standby");
+                startSwitch(FIRST_DELAY_MS);
+            }
+        }
+    };
 
     @Override
     protected void onServiceConnected() {
@@ -49,6 +90,51 @@ public class KeyService extends AccessibilityService {
         } catch (Throwable t) {
             error("Avvio servizio", t);
         }
+        try {
+            loadHomes();
+            IntentFilter f = new IntentFilter(Intent.ACTION_SCREEN_ON);
+            if (Build.VERSION.SDK_INT >= 33) registerReceiver(screenOn, f, Context.RECEIVER_NOT_EXPORTED);
+            else registerReceiver(screenOn, f);
+            registered = true;
+            if (isFreshBoot()) {
+                Log.i(Prefs.TAG, "Accensione: passo all'HDMI");
+                startSwitch(FIRST_DELAY_MS);
+            }
+        } catch (Throwable t) {
+            error("Avvio su HDMI", t);
+        }
+    }
+
+    private void startSwitch(long delay) {
+        attempts = 0;
+        watchUntil = SystemClock.elapsedRealtime() + WATCH_MS;
+        handler.removeCallbacks(doSwitch);
+        handler.postDelayed(doSwitch, delay);
+    }
+
+    /** True una sola volta per accensione, e solo nei primi minuti. */
+    private boolean isFreshBoot() {
+        SharedPreferences p = Prefs.get(this);
+        if (!p.getBoolean(Switcher.K_ON_BOOT, true)) return false;
+        if (SystemClock.elapsedRealtime() > BOOT_WINDOW_MS) return false;
+        long boot = Settings.Global.getInt(getContentResolver(), Settings.Global.BOOT_COUNT, -1);
+        if (boot < 0) boot = (System.currentTimeMillis() - SystemClock.elapsedRealtime()) / 60000;
+        if (p.getLong("lastBoot", Long.MIN_VALUE) == boot) return false;
+        p.edit().putLong("lastBoot", boot).apply();
+        return true;
+    }
+
+    private void loadHomes() {
+        homes.clear();
+        Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
+        for (ResolveInfo r : getPackageManager().queryIntentActivities(home, 0)) {
+            homes.add(r.activityInfo.packageName);
+        }
+        homes.add("com.google.android.apps.tv.launcherx");
+        homes.add("com.google.android.tvlauncher");
+        homes.add("com.google.android.leanbacklauncher");
+        homes.add("com.spocky.projengmenu");              // Projectivy Launcher
+        homes.remove(getPackageName());
     }
 
     @Override
@@ -58,6 +144,15 @@ public class KeyService extends AccessibilityService {
             if (e.getPackageName() == null) return;
             String pkg = e.getPackageName().toString();
             if (!ignored.contains(pkg)) foreground = pkg;
+            // Dopo l'accensione: se la Home copre l'HDMI, si riprova
+            if (SystemClock.elapsedRealtime() < watchUntil) {
+                if (homes.contains(pkg)) {
+                    handler.removeCallbacks(doSwitch);
+                    handler.postDelayed(doSwitch, 1500);
+                } else if (hdmiApps.contains(pkg)) {
+                    watchUntil = 0;                         // HDMI in primo piano: fatto
+                }
+            }
         } catch (Throwable t) {
             error("Evento finestra", t);
         }
@@ -116,6 +211,8 @@ public class KeyService extends AccessibilityService {
     }
 
     private void projectorHome() {
+        watchUntil = 0;
+        handler.removeCallbacks(doSwitch);
         passHomeUntil = SystemClock.uptimeMillis() + 1500;
         Prefs.get(this).edit().putString(Prefs.K_LAST_KEY, "home_proiettore").apply();
         performGlobalAction(GLOBAL_ACTION_HOME);
@@ -124,11 +221,11 @@ public class KeyService extends AccessibilityService {
     private String map(int code) {
         switch (code) {
             case KeyEvent.KEYCODE_VOLUME_UP:
-                return Prefs.on(this, Prefs.K_VOLUME, true) ? "volume_up" : null;
+                return Prefs.on(this, Prefs.K_VOLUME, false) ? "volume_up" : null;
             case KeyEvent.KEYCODE_VOLUME_DOWN:
-                return Prefs.on(this, Prefs.K_VOLUME, true) ? "volume_down" : null;
+                return Prefs.on(this, Prefs.K_VOLUME, false) ? "volume_down" : null;
             case KeyEvent.KEYCODE_VOLUME_MUTE:
-                return Prefs.on(this, Prefs.K_VOLUME, true) ? "mute" : null;
+                return Prefs.on(this, Prefs.K_VOLUME, false) ? "mute" : null;
             case KeyEvent.KEYCODE_SEARCH:
             case KeyEvent.KEYCODE_ASSIST:
             case KeyEvent.KEYCODE_VOICE_ASSIST:
@@ -149,4 +246,13 @@ public class KeyService extends AccessibilityService {
     }
 
     @Override public void onInterrupt() {}
+
+    @Override
+    public void onDestroy() {
+        handler.removeCallbacksAndMessages(null);
+        if (registered) {
+            try { unregisterReceiver(screenOn); } catch (Exception ignored) {}
+        }
+        super.onDestroy();
+    }
 }

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Telecomando Taverna</string>
-    <string name="service_desc">Quando il proiettore mostra l\'ingresso HDMI, i tasti Volume, Muto e Home del telecomando vengono mandati a Home Assistant (impianto audio e box Google TV) invece che al proiettore. Non legge lo schermo e non registra cosa scrivi: guarda solo quale app è in primo piano e quei pochi tasti.</string>
+    <string name="service_desc">All\'accensione porta il proiettore sull\'ingresso HDMI. Quando il proiettore mostra l\'ingresso HDMI, i tasti Volume, Muto e Home del telecomando vengono mandati a Home Assistant (impianto audio e box Google TV) invece che al proiettore. Non legge lo schermo e non registra cosa scrivi: guarda solo quale app è in primo piano e quei pochi tasti.</string>
 </resources>

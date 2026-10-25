@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.media.tv.TvInputInfo;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.InputType;
@@ -16,9 +17,13 @@ import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import java.util.List;
 
 /** Impostazioni: servizio, indirizzo di Home Assistant, tasti, prove. */
 public class MainActivity extends Activity {
@@ -49,13 +54,48 @@ public class MainActivity extends Activity {
 
     private void build() {
         text("Telecomando Taverna", 30, Color.WHITE, 4);
-        text("Sull'HDMI del box, i tasti del telecomando del proiettore vanno a Home Assistant: "
-            + "Volume all'impianto, Home al box. Nelle altre app funzionano come sempre.",
+        text("All'accensione porta il proiettore sull'HDMI. Sull'HDMI del box, la Home del telecomando "
+            + "va alla Home del box (tienila premuta per quella del proiettore). Nelle altre app i tasti funzionano come sempre.",
             16, Color.rgb(154, 163, 178), 16);
 
         status = text("", 18, Color.WHITE, 4);
         serviceBtn = button("Attiva il servizio (Accessibilità)", new View.OnClickListener() {
             @Override public void onClick(View v) { openAccessibility(); }
+        });
+
+        section("Avvio su HDMI");
+        SharedPreferences ps = Prefs.get(this);
+        check("All'accensione", Switcher.K_ON_BOOT, true, ps);
+        check("Quando si riaccende dallo standby", Switcher.K_ON_WAKE, true, ps);
+        text("Ingresso da aprire:", 16, Color.rgb(154, 163, 178), 0);
+        RadioGroup group = new RadioGroup(this);
+        root.addView(group);
+        String current = Switcher.target(this);
+        List<TvInputInfo> inputs = Switcher.inputs(this);
+        if (inputs.isEmpty()) text("Nessun ingresso TV trovato dal sistema.", 16, Color.rgb(255, 196, 0), 4);
+        for (TvInputInfo i : inputs) {
+            final String t = "input:" + i.getId();
+            RadioButton r = new RadioButton(this);
+            r.setText(Switcher.label(this, i) + (i.getType() == TvInputInfo.TYPE_HDMI ? "  ·  HDMI" : ""));
+            r.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+            r.setTextColor(Color.WHITE);
+            r.setPadding(dp(8), dp(10), dp(8), dp(10));
+            r.setId(View.generateViewId());
+            group.addView(r);
+            if (t.equals(current)) r.setChecked(true);
+            r.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override public void onCheckedChanged(CompoundButton v, boolean on) {
+                    if (on) Prefs.get(MainActivity.this).edit().putString(Switcher.K_TARGET, t).apply();
+                }
+            });
+        }
+        button("Apri l'HDMI adesso", new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                if (!Switcher.switchNow(MainActivity.this)) {
+                    Toast.makeText(MainActivity.this, "Non riesco ad aprire questo ingresso: prova l'altra voce",
+                        Toast.LENGTH_LONG).show();
+                }
+            }
         });
 
         section("Home Assistant");
@@ -81,7 +121,7 @@ public class MainActivity extends Activity {
 
         section("Tasti");
         SharedPreferences p = Prefs.get(this);
-        check("Volume e Muto → impianto audio", Prefs.K_VOLUME, true, p);
+        check("Volume e Muto → impianto (sul JMGO non arrivano all'app: il volume passa via CEC)", Prefs.K_VOLUME, false, p);
         check("Home → Home del box (tieni premuto Home per la Home del proiettore)", Prefs.K_HOME, true, p);
         check("Assistente → box (il box non riceve la voce: apre solo la ricerca)", Prefs.K_ASSIST, false, p);
 
